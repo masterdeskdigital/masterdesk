@@ -256,94 +256,157 @@
     const carousel = document.getElementById('solucoes-carousel');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
-
     if (!carousel || !prevBtn || !nextBtn) return;
 
     let autoScroll;
     let userInteracted = false;
     let resumeInteractionTimeout;
+    let index = 0;
+    let itemWidth = 0;
+    let gap = 32; // space-x-8 => 2rem -> 32px
+    let totalItems = 0;
+    const AUTO_INTERVAL = 4000;
+    const RESUME_AFTER = 6000;
 
-    // Atualiza visibilidade das setas conforme posição
+    function calcSizes() {
+      // recomputa largura de item (inclui margin entre itens - gap)
+      totalItems = carousel.children.length;
+      if (totalItems === 0) return;
+      const first = carousel.children[0];
+      const rect = first.getBoundingClientRect();
+      itemWidth = Math.round(rect.width + gap);
+      // ajustar index caso ultrapasse total
+      if (index >= totalItems) index = Math.max(0, totalItems - 1);
+    }
+
     function updateButtons() {
-      const scrollLeft = Math.round(carousel.scrollLeft);
-      const maxScroll = carousel.scrollWidth - carousel.clientWidth;
-
-      // seta esquerda aparece se houve qualquer scroll (manual ou automático)
-      if (scrollLeft > 20) {
+      const maxIndex = Math.max(0, totalItems - 1);
+      // setas: prev aparece quando index>0
+      if (index > 0) {
         prevBtn.classList.remove('opacity-0', 'pointer-events-none');
       } else {
         prevBtn.classList.add('opacity-0', 'pointer-events-none');
       }
-
-      // seta direita some quando no fim
-      if (scrollLeft + 10 >= maxScroll) {
+      // next some quando chega no ultimo
+      if (index >= maxIndex) {
         nextBtn.classList.add('opacity-0', 'pointer-events-none');
       } else {
         nextBtn.classList.remove('opacity-0', 'pointer-events-none');
       }
     }
 
-    // Scroll por quantidade e atualiza estado
-    function scrollByAmount(amount) {
-      // marcar interação do usuário e reiniciar timer para retomar auto-scroll depois
-      userInteracted = true;
-      clearTimeout(resumeInteractionTimeout);
-      resumeInteractionTimeout = setTimeout(() => { userInteracted = false; }, 6000); // retoma após 6s de inatividade
-
-      carousel.scrollBy({ left: amount, behavior: 'smooth' });
-      setTimeout(updateButtons, 550);
+    function scrollToIndex(i, smooth = true) {
+      // garante limites
+      index = Math.min(Math.max(0, i), Math.max(0, totalItems - 1));
+      const left = index * itemWidth;
+      carousel.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
+      // atualizar botoes um pouco depois para respeitar animação
+      setTimeout(updateButtons, 350);
     }
 
-    // Eventos dos botões
-    prevBtn.addEventListener('click', () => scrollByAmount(-400));
-    nextBtn.addEventListener('click', () => scrollByAmount(400));
-
-    // Atualizar quando o usuário rolar manualmente (arrastar)
-    let isTouching = false;
-    carousel.addEventListener('scroll', () => {
-      if (isTouching) {
-        userInteracted = true;
-        clearTimeout(resumeInteractionTimeout);
-        resumeInteractionTimeout = setTimeout(() => { userInteracted = false; }, 6000);
-      }
-      updateButtons();
-    });
-
-    // Detecta toque/arrasto
-    carousel.addEventListener('pointerdown', () => { isTouching = true; });
-    carousel.addEventListener('pointerup', () => { isTouching = false; });
-    carousel.addEventListener('pointercancel', () => { isTouching = false; });
-
-    // Auto-scroll suave
     function startAutoScroll() {
       stopAutoScroll();
       autoScroll = setInterval(() => {
-        if (userInteracted) return; // pausa enquanto o usuário interagiu recentemente
-
-        const maxScroll = carousel.scrollWidth - carousel.clientWidth;
-        if (carousel.scrollLeft + carousel.clientWidth >= maxScroll - 5) {
-          carousel.scrollTo({ left: 0, behavior: 'smooth' });
+        if (userInteracted) return; // pausa se usuário interagiu recentemente
+        const maxIndex = Math.max(0, totalItems - 1);
+        if (index >= maxIndex) {
+          // chegou no fim -> volta ao começo
+          index = 0;
         } else {
-          carousel.scrollBy({ left: 400, behavior: 'smooth' });
+          index++;
         }
-
-        // atualiza as setas também quando o auto-scroll anda
-        setTimeout(updateButtons, 700);
-      }, 4000);
+        scrollToIndex(index, true);
+      }, AUTO_INTERVAL);
     }
 
     function stopAutoScroll() {
-      if (autoScroll) clearInterval(autoScroll);
+      if (autoScroll) {
+        clearInterval(autoScroll);
+        autoScroll = null;
+      }
     }
 
-    // Pausa auto-scroll no hover (desktop) e retoma ao sair
-    carousel.addEventListener('mouseenter', stopAutoScroll);
-    carousel.addEventListener('mouseleave', startAutoScroll);
+    // next/prev handlers (marcam interação do usuário)
+    function markUserInteraction() {
+      userInteracted = true;
+      clearTimeout(resumeInteractionTimeout);
+      resumeInteractionTimeout = setTimeout(() => { userInteracted = false; }, RESUME_AFTER);
+    }
 
-    // Inicializa
+    prevBtn.addEventListener('click', () => {
+      markUserInteraction();
+      scrollToIndex(index - 1, true);
+    });
+    nextBtn.addEventListener('click', () => {
+      markUserInteraction();
+      scrollToIndex(index + 1, true);
+    });
+
+    // Detectar arraste manual / pointer events e atualizar index ao soltar
+    let isPointerDown = false;
+    let pointerStartX = 0;
+    carousel.addEventListener('pointerdown', (e) => {
+      isPointerDown = true;
+      pointerStartX = e.clientX;
+      markUserInteraction();
+      stopAutoScroll();
+    });
+
+    carousel.addEventListener('pointerup', (e) => {
+      if (!isPointerDown) return;
+      isPointerDown = false;
+      markUserInteraction();
+      // determinar index mais próximo baseado em scrollLeft
+      const newIndex = Math.round(carousel.scrollLeft / itemWidth);
+      scrollToIndex(newIndex, true);
+      startAutoScroll();
+    });
+
+    carousel.addEventListener('pointercancel', () => {
+      isPointerDown = false;
+      startAutoScroll();
+    });
+
+    // Atualiza índice durante scroll (por exemplo quando auto-scroll termina)
+    carousel.addEventListener('scroll', () => {
+      // atualiza index aproximado para que setas apareçam quando auto-scroll mover
+      const approx = Math.round(carousel.scrollLeft / (itemWidth || 1));
+      if (approx !== index) {
+        index = approx;
+        updateButtons();
+      }
+    });
+
+    // pausar no hover (desktop) e retomar
+    carousel.addEventListener('mouseenter', () => {
+      stopAutoScroll();
+    });
+    carousel.addEventListener('mouseleave', () => {
+      // se usuário não interagiu recentemente, retomar imediatamente
+      if (!userInteracted) startAutoScroll();
+    });
+
+    // recalcula tamanhos ao carregar e redimensionar
+    window.addEventListener('load', () => {
+      calcSizes();
+      scrollToIndex(0, false);
+      updateButtons();
+      startAutoScroll();
+    });
+    window.addEventListener('resize', () => {
+      const prevLeft = carousel.scrollLeft;
+      calcSizes();
+      // tenta manter o card visível após resize
+      const newIndex = Math.round(prevLeft / (itemWidth || 1));
+      scrollToIndex(newIndex, false);
+      updateButtons();
+    });
+
+    // inicialização imediata (caso load já tenha passado)
+    calcSizes();
+    scrollToIndex(0, false);
     updateButtons();
     startAutoScroll();
-    window.addEventListener('resize', updateButtons);
   })();
 </script>
 
@@ -381,26 +444,30 @@
         
     </main>
 
-    <footer id="contato" class="bg-primary-card border-t border-accent-purple/50 mt-16">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 text-center text-sm">
-            
-            <p class="text-text-faded text-xs mb-1">
-                cdO69AIJ dslae c d.i.c ciosioa iear faniwzeaae ccm
-            </p>
-            <p class="text-text-faded text-xs">
-                eo dv dseooa dsirsaae e hiedl Sasir ae peodiosoe • <a href="mailto:contato@masterdesk.com" class="text-accent-blue hover:text-accent-blue/80">qsrwntr@dtsbs.us</a>
-            </p>
+   <footer id="contato" class="bg-primary-card border-t border-accent-purple/50 mt-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6 text-center text-sm">
 
-            <div class="mt-4 flex justify-center space-x-6 text-text-faded text-xs border-t border-primary-dark/50 pt-4">
-                <span class="font-mono">6OPTA19F4</span>
-                <span class="font-mono">MACI5</span>
-                <a href="#" class="text-accent-blue hover:text-accent-blue/80 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 lucide lucide-rss"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
-                    Scroll-to-Top
-                </a>
-            </div>
+        <!-- Linha 1: Direitos Autorais e Nome da Empresa (Texto corrigido) -->
+        <p class="text-text-faded text-xs mb-1">
+            © 2025 MASTERDESK DIGITAL. Todos os direitos reservados.
+        </p>
+
+        <!-- Linha 2: Termos de Uso e Contato (Texto corrigido e link mantido) -->
+        <p class="text-text-faded text-xs">
+            Termos de Uso e Política de Privacidade aplicáveis. • <a href="mailto:contato@masterdesk.com" class="text-accent-blue hover:text-accent-blue/80">masterdeskdigital@gmail    .com</a>
+        </p>
+
+        <!-- Informações técnicas (mantidas) e Scroll-to-Top -->
+        <div class="mt-4 flex justify-center space-x-6 text-text-faded text-xs border-t border-primary-dark/50 pt-4">
+            <span class="font-mono">6OPTA19F4</span>
+            <span class="font-mono">MACI5</span>
+            <a href="#" class="text-accent-blue hover:text-accent-blue/80 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 lucide lucide-rss"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+                Scroll-to-Top
+            </a>
         </div>
-    </footer>
+    </div>
+</footer>
     
     <button id="scrollToTopBtn" class="scroll-to-top p-3 bg-accent-blue rounded-full shadow-lg hover:bg-accent-blue/80 transition duration-300">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary-dark lucide lucide-arrow-up"><path d="m18 15-6-6-6 6"/></svg>
@@ -507,6 +574,8 @@
 
 </body>
 </html>
+
+
 
 
 
