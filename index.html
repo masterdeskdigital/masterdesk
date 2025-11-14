@@ -6,6 +6,8 @@
     <title>MasterDesk Digital - Soluções em Nuvem</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="./assets/MD.png" sizes="32x32">
+    <link rel="apple-touch-icon" href="./assets/MD.png">
     
     <script>
         tailwind.config = {
@@ -589,18 +591,19 @@
             </div>
             <div>
                 <label for="email" class="block text-sm font-medium text-text-faded mb-1">Seu Melhor E-mail</label>
-                <input type="email" id="email" name="Email" required class="mt-1 block w-full rounded-lg border border-primary-dark/50 bg-primary-dark p-3 text-white placeholder-gray-500 focus:ring-accent-blue focus:border-accent-blue transition" placeholder="exemplo@email.com">
+                <input type="email" id="email" name="Email" required class="mt-1 block w-full rounded-lg border border-primary-dark/50 bg-primary-dark p-3 text-white placeholder-gray-500 focus:ring-accent-blue focus:border-accent-blue transition" placeholder="email@exemplo.com">
             </div>
             <div>
-                <label for="instagram_handle" class="block text-sm font-medium text-text-faded mb-1">Instagram (@ do perfil)</label>
-                <input 
-                    type="text" 
-                    id="instagram_handle" 
-                    name="Instagram" 
-                    class="mt-1 block w-full rounded-lg border border-primary-dark/50 bg-primary-dark p-3 text-white placeholder-gray-500 focus:ring-accent-blue focus:border-accent-blue transition" 
-                    placeholder="@nomedoperfil"
-                >
-            </div>
+                <div>
+                    <label for="instagram_handle" class="block text-sm font-medium text-text-faded mb-1">Instagram (@ do perfil)</label>
+                    <input 
+                        type="text" 
+                        id="instagram_handle" 
+                        name="Instagram" 
+                        class="mt-1 block w-full rounded-lg border border-primary-dark/50 bg-primary-dark p-3 text-white placeholder-gray-500 focus:ring-accent-blue focus:border-accent-blue transition" 
+                        placeholder="@nomedoperfil"
+                    >
+                </div>
             <div>
                 <label for="message" class="block text-sm font-medium text-text-faded mb-1">O que você gostaria de automatizar?</label>
                 <textarea id="message" name="Mensagem" rows="4" class="mt-1 block w-full rounded-lg border border-primary-dark/50 bg-primary-dark p-3 text-white placeholder-gray-500 focus:ring-accent-blue focus:border-accent-blue transition" placeholder="Ex: Preciso de gestão de mídias e planilhas inteligentes."></textarea>
@@ -724,6 +727,4 @@
 </script>
 </body>
 </html>
-
-
 
